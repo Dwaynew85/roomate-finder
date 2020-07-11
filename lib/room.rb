@@ -1,5 +1,5 @@
 class Room
-  attr_accessor :title, :date_created, :price, :url
+  attr_accessor :id, :title, :date_created, :price, :url
 
   def self.create_from_hash(hash)
     new_from_hash(hash).save
@@ -11,11 +11,49 @@ class Room
     room.date_created = hash[:date_created]
     room.price = hash[:price]
     room.url = hash[:url]
-    room
+
+    room # dangling return value
+  end
+
+  def self.by_price(order = "ASC")
+    sql = <<-SQL
+    SELECT *
+    FROM rooms
+    ORDER BY price #{order}
+    SQL
+
+    rows = DB[:connection].execute(sql)
+    self.new_from_rows(rows)
+  end
+
+  def self.new_from_rows(rows)
+    rows.collect do |row|
+      self.new_from_db(row)
+    end
+  end
+
+  def self.new_from_db(row)
+    self.new.tap do |room| # returns original instance itself, instead of the last line. no need for dangling return
+      room.id = row[0]
+      room.title = row[1]
+      room.date_created = row[2]
+      room.price = row[3]
+      room.url = row[4]
+    end
   end
 
   def save
     insert
+  end
+
+  def self.all
+    sql = <<-SQL
+    SELECT * FROM rooms;
+    SQL
+
+    rows = DB[:connection].execute(sql)
+    # go from a row [1, "title", date, price, url] to an instance #<Room>
+    self.new_from_rows(rows)
   end
 
   def insert
